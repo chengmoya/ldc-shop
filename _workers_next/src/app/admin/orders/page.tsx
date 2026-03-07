@@ -6,6 +6,8 @@ import { normalizeTimestampMs, withOrderColumnFallback } from "@/lib/db/queries"
 import { PAYMENT_PRODUCT_ID } from "@/lib/payment"
 import { unstable_noStore } from "next/cache"
 
+const LOGIN_USER_LOOKUP_BATCH_SIZE = 50
+
 function parseIntParam(value: unknown, fallback: number) {
     const num = typeof value === 'string' ? Number.parseInt(value, 10) : NaN
     return Number.isFinite(num) && num > 0 ? num : fallback
@@ -14,6 +16,14 @@ function parseIntParam(value: unknown, fallback: number) {
 function firstParam(value: string | string[] | undefined): string | undefined {
     if (!value) return undefined
     return Array.isArray(value) ? value[0] : value
+}
+
+function chunkArray<T>(items: T[], size: number) {
+    const chunks: T[][] = []
+    for (let index = 0; index < items.length; index += size) {
+        chunks.push(items.slice(index, index + size))
+    }
+    return chunks
 }
 
 export default async function AdminOrdersPage(props: {
@@ -67,13 +77,17 @@ export default async function AdminOrdersPage(props: {
     ))
 
     const loginUserRows = orderUserIds.length > 0
-        ? await db
-            .select({
-                userId: loginUsers.userId,
-                username: loginUsers.username,
-            })
-            .from(loginUsers)
-            .where(inArray(loginUsers.userId, orderUserIds))
+        ? (await Promise.all(
+            chunkArray(orderUserIds, LOGIN_USER_LOOKUP_BATCH_SIZE).map((batch) =>
+                db
+                    .select({
+                        userId: loginUsers.userId,
+                        username: loginUsers.username,
+                    })
+                    .from(loginUsers)
+                    .where(inArray(loginUsers.userId, batch))
+            )
+        )).flat()
         : []
 
     const usernameByUserId = new Map<string, string>()
