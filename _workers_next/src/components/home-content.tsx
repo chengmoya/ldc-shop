@@ -96,6 +96,8 @@ export function HomeContent({ products, announcement, visitorCount, categories =
     const startIndex = (currentPage - 1) * pagination.pageSize
     const pageItems = sortedProducts.slice(startIndex, startIndex + pagination.pageSize)
     const hasMore = currentPage < totalPages
+    const hasAnnouncement = Boolean(announcement?.banner)
+    const hasPendingOrders = Boolean(pendingOrders && pendingOrders.length > 0)
     const sortOptions = [
         { key: "default", label: t("home.sort.default") },
         { key: "stockDesc", label: t("home.sort.stock") },
@@ -135,6 +137,58 @@ export function HomeContent({ products, announcement, visitorCount, categories =
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.42),_transparent_54%)] dark:bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.05),_transparent_58%)]" />
                 <div className="absolute inset-0 opacity-[0.03] [background-image:linear-gradient(to_right,rgba(15,23,42,0.18)_1px,transparent_1px),linear-gradient(to_bottom,rgba(15,23,42,0.12)_1px,transparent_1px)] [background-size:72px_72px] dark:[background-image:linear-gradient(to_right,rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.06)_1px,transparent_1px)]" />
             </div>
+
+            {(hasAnnouncement || hasPendingOrders) && (
+                <section className="mb-5 grid gap-3 xl:grid-cols-[minmax(0,1.45fr)_minmax(22rem,0.9fr)]">
+                    {hasAnnouncement && (
+                        <div
+                            className={cn(
+                                "relative overflow-hidden rounded-[1.75rem] border border-primary/15 bg-background/72 px-5 py-4 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl",
+                                !hasPendingOrders && "xl:col-span-2"
+                            )}
+                        >
+                            <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-primary via-primary/80 to-cyan-400/70" />
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(59,130,246,0.12),_transparent_34%)] dark:bg-[radial-gradient(circle_at_top_right,_rgba(96,165,250,0.12),_transparent_40%)]" />
+                            <div className="relative pl-2">
+                                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">
+                                    <Sparkles className="h-3.5 w-3.5" />
+                                    <span>{t("home.announcementLabel")}</span>
+                                </div>
+                                <p className="whitespace-pre-wrap text-sm leading-7 text-foreground/90">
+                                    {announcement?.banner}
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
+                    {hasPendingOrders && (
+                        <div className="relative overflow-hidden rounded-[1.75rem] border border-yellow-500/20 bg-background/72 px-5 py-4 shadow-[0_18px_45px_-34px_rgba(15,23,42,0.28)] backdrop-blur-xl">
+                            <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-yellow-500 to-amber-400/70" />
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(250,204,21,0.14),_transparent_38%)] dark:bg-[radial-gradient(circle_at_top_right,_rgba(250,204,21,0.12),_transparent_42%)]" />
+                            <div className="relative pl-2">
+                                <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-yellow-500/15 bg-yellow-500/8 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-yellow-700 dark:text-yellow-300">
+                                    <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span>{t("home.pendingOrderLabel")}</span>
+                                </div>
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <p className="text-sm font-medium leading-7 text-foreground/90">
+                                        {pendingOrders?.length === 1
+                                            ? t("home.pendingOrder.single", { orderId: pendingOrders[0].orderId })
+                                            : t("home.pendingOrder.multiple", { count: pendingOrders?.length || 0 })}
+                                    </p>
+                                    <Link href={pendingOrders?.length === 1 ? `/order/${pendingOrders[0].orderId}` : "/orders"}>
+                                        <Button size="sm" variant="outline" className="w-fit rounded-full border-yellow-500/30 hover:bg-yellow-500/10 hover:text-yellow-600 dark:hover:text-yellow-400">
+                                            {pendingOrders?.length === 1 ? t("common.payNow") : t("common.viewOrders")}
+                                        </Button>
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </section>
+            )}
 
             <section className="relative mb-8 overflow-hidden rounded-[2rem] border border-border/40 bg-gradient-to-br from-card via-card/95 to-primary/5 shadow-[0_25px_80px_-40px_rgba(15,23,42,0.25)]">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.75),_transparent_36%)] dark:bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.08),_transparent_36%)]" />
@@ -186,53 +240,10 @@ export function HomeContent({ products, announcement, visitorCount, categories =
                                     </Button>
                                 </Link>
                             )}
-                            <div className="inline-flex flex-1 items-center justify-between rounded-2xl border border-border/45 bg-background/72 px-4 py-3 text-sm text-muted-foreground shadow-sm">
-                                <span>{t("home.resultsCount", { count: sortedProducts.length })}</span>
-                                <ArrowRight className="h-4 w-4 text-primary" />
-                            </div>
                         </div>
                     </div>
                 </div>
             </section>
-
-            {announcement?.banner && (
-                <section className="mb-6">
-                    <div className="relative overflow-hidden rounded-[1.6rem] border border-primary/15 bg-gradient-to-r from-primary/6 via-primary/10 to-cyan-200/10 px-5 py-4 animate-in fade-in slide-in-from-top-2 duration-300 dark:to-cyan-400/8">
-                        <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-primary via-primary/80 to-cyan-400/70" />
-                        <div className="flex items-start gap-3 pl-2">
-                            <svg className="mt-0.5 h-5 w-5 shrink-0 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-                            </svg>
-                            <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{announcement.banner}</p>
-                        </div>
-                    </div>
-                </section>
-            )}
-
-            {pendingOrders && pendingOrders.length > 0 && (
-                <section className="mb-8">
-                    <div className="relative overflow-hidden rounded-[1.6rem] border border-yellow-500/20 bg-gradient-to-r from-yellow-500/6 via-yellow-500/10 to-amber-300/12 px-5 py-4 dark:to-amber-400/8">
-                        <div className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-yellow-500 to-amber-400/70" />
-                        <div className="flex items-center justify-between gap-4 pl-2">
-                            <div className="flex items-center gap-3">
-                                <svg className="h-5 w-5 shrink-0 text-yellow-600 dark:text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                <p className="text-sm font-medium text-foreground/90">
-                                    {pendingOrders.length === 1
-                                        ? t("home.pendingOrder.single", { orderId: pendingOrders[0].orderId })
-                                        : t("home.pendingOrder.multiple", { count: pendingOrders.length })}
-                                </p>
-                            </div>
-                            <Link href={pendingOrders.length === 1 ? `/order/${pendingOrders[0].orderId}` : "/orders"}>
-                                <Button size="sm" variant="outline" className="cursor-pointer rounded-full border-yellow-500/30 hover:bg-yellow-500/10 hover:text-yellow-600 dark:hover:text-yellow-400">
-                                    {pendingOrders.length === 1 ? t("common.payNow") : t("common.viewOrders")}
-                                </Button>
-                            </Link>
-                        </div>
-                    </div>
-                </section>
-            )}
 
             <section className="mb-10 space-y-4">
                 <div className="flex flex-col gap-4 rounded-[1.8rem] border border-border/40 bg-card/70 p-4 shadow-[0_20px_50px_-36px_rgba(15,23,42,0.3)] backdrop-blur-md">

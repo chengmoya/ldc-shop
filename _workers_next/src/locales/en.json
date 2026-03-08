@@ -68,6 +68,8 @@
         "heroBadge": "Curated Digital Storefront",
         "heroSearchHint": "Quick discovery",
         "heroCategoryLead": "Popular categories",
+        "announcementLabel": "Store update",
+        "pendingOrderLabel": "Pending orders",
         "catalogEyebrow": "Catalog & filters",
         "catalogTitle": "Explore the catalog",
         "catalogSubtitle": "Find the right product faster with category, stock, sales and price filters.",
