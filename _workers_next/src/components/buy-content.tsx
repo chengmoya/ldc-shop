@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from "react"
+import { type TouchEvent, useEffect, useMemo, useRef, useState } from "react"
 import { useI18n } from "@/lib/i18n/context"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -19,7 +19,7 @@ import {
     DialogTrigger
 } from "@/components/ui/dialog"
 import ReactMarkdown from 'react-markdown'
-import { Loader2, Minus, Plus, Share2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Loader2, Minus, Plus, Share2 } from "lucide-react"
 import { ProductImagePlaceholder } from "@/components/product-image-placeholder"
 import { toast } from "sonner"
 import Image from "next/image"
@@ -90,6 +90,7 @@ export function BuyContent({
     const { t } = useI18n()
     const [selectedVariantId, setSelectedVariantId] = useState<string>(product.id)
     const [selectedGalleryImage, setSelectedGalleryImage] = useState<string | null>(null)
+    const [isGalleryDialogOpen, setIsGalleryDialogOpen] = useState(false)
     const [shareUrl, setShareUrl] = useState('')
     const [quantity, setQuantity] = useState(1)
     const [showWarningDialog, setShowWarningDialog] = useState(false)
@@ -102,6 +103,7 @@ export function BuyContent({
     const [emailConfiguredState, setEmailConfiguredState] = useState(emailConfigured)
     const [metaLoading, setMetaLoading] = useState(true)
     const [metaRefreshSeq, setMetaRefreshSeq] = useState(0)
+    const galleryTouchStartRef = useRef({ x: 0, y: 0 })
 
     const [questionAnswers, setQuestionAnswers] = useState<string[]>([])
     const [questionsVerified, setQuestionsVerified] = useState(false)
@@ -285,6 +287,42 @@ export function BuyContent({
     const activeGalleryImage = selectedGalleryImage && galleryImages.includes(selectedGalleryImage)
         ? selectedGalleryImage
         : galleryImages[0] ?? null
+    const activeGalleryIndex = activeGalleryImage ? galleryImages.indexOf(activeGalleryImage) : -1
+    const canSwitchGallery = galleryImages.length > 1 && activeGalleryIndex >= 0
+
+    const showPreviousGalleryImage = () => {
+        if (!canSwitchGallery) return
+        const nextIndex = activeGalleryIndex === 0 ? galleryImages.length - 1 : activeGalleryIndex - 1
+        setSelectedGalleryImage(galleryImages[nextIndex] ?? null)
+    }
+
+    const showNextGalleryImage = () => {
+        if (!canSwitchGallery) return
+        const nextIndex = activeGalleryIndex === galleryImages.length - 1 ? 0 : activeGalleryIndex + 1
+        setSelectedGalleryImage(galleryImages[nextIndex] ?? null)
+    }
+
+    const handleGalleryTouchStart = (event: TouchEvent<HTMLElement>) => {
+        const touch = event.changedTouches[0]
+        galleryTouchStartRef.current = {
+            x: touch?.clientX ?? 0,
+            y: touch?.clientY ?? 0,
+        }
+    }
+
+    const handleGalleryTouchEnd = (event: TouchEvent<HTMLElement>) => {
+        if (!canSwitchGallery) return
+        const touch = event.changedTouches[0]
+        const deltaX = (touch?.clientX ?? 0) - galleryTouchStartRef.current.x
+        const deltaY = Math.abs((touch?.clientY ?? 0) - galleryTouchStartRef.current.y)
+        if (Math.abs(deltaX) < 40 || deltaY > 80) return
+        if (deltaX < 0) {
+            showNextGalleryImage()
+            return
+        }
+        showPreviousGalleryImage()
+    }
+
     return (
         <main className="container relative py-8 md:py-16">
             <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
@@ -301,8 +339,14 @@ export function BuyContent({
                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.78),_transparent_32%)] dark:bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.08),_transparent_36%)]" />
                             <div className="relative">
                                 <div className="grid gap-0 lg:grid-cols-[minmax(0,0.98fr)_minmax(0,1.02fr)]">
-                                    <div className="relative border-b border-border/20 p-5 md:p-6 lg:border-b-0 lg:border-r">
-                                        <div className="relative flex h-full min-h-[18rem] items-center justify-center overflow-hidden rounded-[1.65rem] bg-card/50 p-5 md:min-h-[22rem] md:p-8">
+                                    <div className="relative flex flex-col border-b border-border/20 p-5 md:p-6 lg:border-b-0 lg:border-r">
+                                        <button
+                                            type="button"
+                                            className="relative flex min-h-[18rem] flex-1 items-center justify-center overflow-hidden rounded-[1.65rem] bg-card/50 p-5 text-left transition hover:bg-card/60 md:min-h-[22rem] md:p-8"
+                                            onClick={() => activeGalleryImage && setIsGalleryDialogOpen(true)}
+                                            onTouchStart={handleGalleryTouchStart}
+                                            onTouchEnd={handleGalleryTouchEnd}
+                                        >
                                             {activeGalleryImage ? (
                                                 <div className="relative aspect-[4/3] w-full max-w-[32rem]">
                                                     <Image
@@ -318,34 +362,34 @@ export function BuyContent({
                                                     <ProductImagePlaceholder productId={displayProduct.id} productName={displayProduct.name} size="md" />
                                                 </div>
                                             )}
-                                        </div>
-                                        {galleryImages.length > 1 && (
-                                            <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
-                                                {galleryImages.map((image, index) => {
-                                                    const isActive = image === activeGalleryImage
-                                                    return (
-                                                        <button
-                                                            key={`${image}-${index}`}
-                                                            type="button"
-                                                            className={`relative h-20 w-24 shrink-0 overflow-hidden rounded-2xl border bg-background/80 transition ${
-                                                                isActive
-                                                                    ? "border-primary shadow-lg shadow-primary/15"
-                                                                    : "border-border/35 hover:border-border"
-                                                            }`}
-                                                            onClick={() => setSelectedGalleryImage(image)}
-                                                        >
-                                                            <Image
-                                                                src={image}
-                                                                alt={`${displayProduct.name} ${index + 1}`}
-                                                                fill
-                                                                sizes="96px"
-                                                                className="object-cover"
-                                                            />
-                                                        </button>
-                                                    )
-                                                })}
-                                            </div>
-                                        )}
+                                            {canSwitchGallery && (
+                                                <>
+                                                    <Button
+                                                        type="button"
+                                                        variant="secondary"
+                                                        size="icon"
+                                                        className="absolute left-3 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full border border-border/40 bg-background/85 shadow-lg backdrop-blur hover:bg-background"
+                                                        onClick={showPreviousGalleryImage}
+                                                        aria-label="Previous image"
+                                                    >
+                                                        <ChevronLeft className="h-5 w-5" />
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="secondary"
+                                                        size="icon"
+                                                        className="absolute right-3 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full border border-border/40 bg-background/85 shadow-lg backdrop-blur hover:bg-background"
+                                                        onClick={showNextGalleryImage}
+                                                        aria-label="Next image"
+                                                    >
+                                                        <ChevronRight className="h-5 w-5" />
+                                                    </Button>
+                                                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-border/30 bg-background/80 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
+                                                        {activeGalleryIndex + 1} / {galleryImages.length}
+                                                    </div>
+                                                </>
+                                            )}
+                                        </button>
                                     </div>
 
                                     <div className="relative flex flex-col justify-center p-6 md:p-8">
@@ -762,6 +806,60 @@ export function BuyContent({
                     </CardContent>
                 </Card>
             </div>
+
+            <Dialog open={isGalleryDialogOpen} onOpenChange={setIsGalleryDialogOpen}>
+                <DialogContent className="max-w-5xl border-border/40 bg-background/96 p-3 sm:p-4">
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>{displayProduct.name}</DialogTitle>
+                        <DialogDescription>{t('buy.shareDescription')}</DialogDescription>
+                    </DialogHeader>
+                    <div className="relative flex min-h-[60vh] items-center justify-center overflow-hidden rounded-2xl bg-muted/20 p-4 md:min-h-[72vh]">
+                        <div
+                            className="absolute inset-0"
+                            onTouchStart={handleGalleryTouchStart}
+                            onTouchEnd={handleGalleryTouchEnd}
+                        />
+                        {activeGalleryImage ? (
+                            <div className="relative h-[60vh] w-full md:h-[72vh]">
+                                <Image
+                                    src={activeGalleryImage}
+                                    alt={displayProduct.name}
+                                    fill
+                                    sizes="90vw"
+                                    className="object-contain"
+                                />
+                            </div>
+                        ) : null}
+                        {canSwitchGallery && (
+                            <>
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="icon"
+                                    className="absolute left-3 top-1/2 h-11 w-11 -translate-y-1/2 rounded-full border border-border/40 bg-background/90 shadow-lg"
+                                    onClick={showPreviousGalleryImage}
+                                    aria-label="Previous image"
+                                >
+                                    <ChevronLeft className="h-5 w-5" />
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="icon"
+                                    className="absolute right-3 top-1/2 h-11 w-11 -translate-y-1/2 rounded-full border border-border/40 bg-background/90 shadow-lg"
+                                    onClick={showNextGalleryImage}
+                                    aria-label="Next image"
+                                >
+                                    <ChevronRight className="h-5 w-5" />
+                                </Button>
+                                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full border border-border/30 bg-background/88 px-3 py-1 text-xs font-medium text-muted-foreground">
+                                    {activeGalleryIndex + 1} / {galleryImages.length}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </main>
     )
 }

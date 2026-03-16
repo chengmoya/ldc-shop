@@ -17,6 +17,7 @@ const columnEnsureState: Record<ColumnEnsureKey, { ready: boolean; pending: Prom
     cards: { ready: false, pending: null },
     loginUsers: { ready: false, pending: null },
 };
+const reviewRepliesEnsureState = { ready: false, pending: null as Promise<void> | null };
 
 async function ensureColumnsOnce(key: ColumnEnsureKey, task: () => Promise<void>) {
     const state = columnEnsureState[key];
@@ -116,19 +117,35 @@ async function ensureIndexes() {
 }
 
 async function ensureReviewRepliesTable() {
+    if (reviewRepliesEnsureState.ready) return;
+    if (reviewRepliesEnsureState.pending) {
+        await reviewRepliesEnsureState.pending;
+        return;
+    }
+
+    const pending = (async () => {
+        try {
+            await db.run(sql`
+                CREATE TABLE IF NOT EXISTS review_replies (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    review_id INTEGER NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
+                    user_id TEXT NOT NULL,
+                    username TEXT NOT NULL,
+                    comment TEXT NOT NULL,
+                    created_at INTEGER DEFAULT (unixepoch() * 1000)
+                )
+            `)
+            reviewRepliesEnsureState.ready = true;
+        } catch {
+            // best effort
+        }
+    })();
+
+    reviewRepliesEnsureState.pending = pending;
     try {
-        await db.run(sql`
-            CREATE TABLE IF NOT EXISTS review_replies (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                review_id INTEGER NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
-                user_id TEXT NOT NULL,
-                username TEXT NOT NULL,
-                comment TEXT NOT NULL,
-                created_at INTEGER DEFAULT (unixepoch() * 1000)
-            )
-        `)
-    } catch {
-        // best effort
+        await pending;
+    } finally {
+        reviewRepliesEnsureState.pending = null;
     }
 }
 
